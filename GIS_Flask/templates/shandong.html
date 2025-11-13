@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>山东省人口数据可视化系统</title>
+    
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: #1a1f3a;
+            padding: 24px 40px;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #00d4ff;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            color: #8a92a6;
+            font-size: 13px;
+        }
+        
+        .header-links {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-link {
+            padding: 10px 20px;
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            color: #00d4ff;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .header-link:hover {
+            background: #2d3548;
+            border-color: #00d4ff;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            background: #1a1f3a;
+            padding: 16px 40px;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #8a92a6;
+            font-size: 13px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            50% { opacity: 1; box-shadow: 0 0 0 6px rgba(0, 255, 136, 0); }
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 24px 40px;
+        }
+        
+        .stat-card {
+            background: #1a1f3a;
+            padding: 20px;
+            border: 1px solid #2d3548;
+        }
+        
+        .stat-card .icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #00d4ff;
+            margin: 8px 0;
+        }
+        
+        .stat-card .label {
+            color: #8a92a6;
+            font-size: 12px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            padding: 0 40px;
+            background: #1a1f3a;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .nav-tab {
+            padding: 14px 28px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #8a92a6;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .nav-tab:hover {
+            color: #00d4ff;
+        }
+        
+        .nav-tab.active {
+            color: #00d4ff;
+            border-bottom-color: #00d4ff;
+        }
+        
+        .content {
+            padding: 24px 40px;
+        }
+        
+        .chart-container {
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 500px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #8a92a6;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .btn {
+            padding: 8px 18px;
+            background: #00d4ff;
+            color: #0a0e27;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00b8e6;
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>📍 山东省人口数据可视化系统</h1>
+                <div class="subtitle">基于数据库视图的山东省专属数据平台</div>
+            </div>
+            <div class="header-links">
+                <a href="/" class="header-link">← 返回全国</a>
+                <a href="/query" class="header-link">🔍 智能查询</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot"></div>
+            <span>系统运行中</span>
+        </div>
+        <div class="status-item">
+            <span id="lastUpdate">最后更新: 加载中...</span>
+        </div>
+        <div class="status-item">
+            <span id="nextUpdate">下次更新: 加载中...</span>
+        </div>
+        <div class="status-item">
+            <button onclick="forceUpdate()" class="btn">🔄 刷新数据</button>
+        </div>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats-cards">
+        <div class="stat-card">
+            <div class="icon">👥</div>
+            <div class="value" id="totalPopulation">-</div>
+            <div class="label">总人口数</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🏙️</div>
+            <div class="value" id="totalCities">-</div>
+            <div class="label">地级市数量</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">💑</div>
+            <div class="value" id="totalMarriages">-</div>
+            <div class="label">婚姻记录</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">⚰️</div>
+            <div class="value" id="totalDeaths">-</div>
+            <div class="label">死亡记录</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🚀</div>
+            <div class="value" id="netMigration">-</div>
+            <div class="label">净迁入人口</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">💰</div>
+            <div class="value" id="avgIncome">-</div>
+            <div class="label">平均月收入</div>
+        </div>
+    </div>
+    
+    <!-- 导航标签 -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('city')">城市分布</button>
+        <button class="nav-tab" onclick="switchTab('gender')">性别比例</button>
+        <button class="nav-tab" onclick="switchTab('age')">年龄分布</button>
+        <button class="nav-tab" onclick="switchTab('education')">受教育程度</button>
+        <button class="nav-tab" onclick="switchTab('migration')">人口迁移</button>
+        <button class="nav-tab" onclick="switchTab('ethnicity')">民族分布</button>
+    </div>
+    
+    <!-- 内容区域 -->
+    <div class="content">
+        <div id="loading" class="loading">
+            <div>⏳ 正在加载数据...</div>
+        </div>
+        
+        <div class="chart-container">
+            <div id="mainChart" class="chart"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentTab = 'city';
+        let allData = null;
+        let mainChart = null;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            loadData();
+            updateCacheInfo();
+            setInterval(updateCacheInfo, 60000);
+        });
+        
+        // 初始化图表
+        function initChart() {
+            mainChart = echarts.init(document.getElementById('mainChart'));
+            window.addEventListener('resize', function() {
+                mainChart.resize();
+            });
+        }
+        
+        // 加载数据
+        async function loadData() {
+            console.log('\n' + '='.repeat(60));
+            console.log('📥 开始加载山东省数据');
+            console.log('='.repeat(60));
+            
+            showLoading(true);
+            
+            try {
+                console.log('🌐 请求URL: /api/shandong/data/all');
+                const response = await fetch('/api/shandong/data/all');
+                
+                console.log('📡 HTTP状态码:', response.status);
+                console.log('📡 HTTP状态文本:', response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('📦 API响应:', result);
+                
+                if (result.code === 200) {
+                    allData = result.data;
+                    console.log('✅ 数据加载成功');
+                    console.log('📊 数据结构:', {
+                        'total_population': allData.total_population,
+                        'city_population': allData.city_population ? Object.keys(allData.city_population).length + '个城市' : 'undefined',
+                        'marriage': allData.marriage ? '存在' : 'undefined',
+                        'death': allData.death ? '存在' : 'undefined',
+                        'migration': allData.migration ? '存在' : 'undefined',
+                        'income': allData.income ? '存在' : 'undefined'
+                    });
+                    
+                    updateStats();
+                    renderChart();
+                } else {
+                    console.error('❌ API返回错误:', result);
+                    alert('加载数据失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('❌ 加载数据异常:', error);
+                console.error('错误堆栈:', error.stack);
+                alert('加载数据失败: ' + error.message);
+            } finally {
+                showLoading(false);
+                console.log('='.repeat(60) + '\n');
+            }
+        }
+        
+        // 更新缓存信息
+        async function updateCacheInfo() {
+            try {
+                const response = await fetch('/api/shandong/cache/info');
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    const info = result.data;
+                    document.getElementById('lastUpdate').textContent = 
+                        '最后更新: ' + info.last_update;
+                    document.getElementById('nextUpdate').textContent = 
+                        '下次更新: ' + info.next_update;
+                }
+            } catch (error) {
+                console.error('获取缓存信息失败:', error);
+            }
+        }
+        
+        // 强制更新
+        async function forceUpdate() {
+            try {
+                const response = await fetch('/api/shandong/cache/update', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    alert('✅ 缓存更新已触发！');
+                    setTimeout(() => {
+                        loadData();
+                        updateCacheInfo();
+                    }, 2000);
+                } else {
+                    alert('❌ 更新失败: ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ 更新失败: ' + error.message);
+            }
+        }
+        
+        // 更新统计卡片
+        function updateStats() {
+            console.log('\n' + '='.repeat(60));
+            console.log('📊 更新山东省统计卡片');
+            console.log('='.repeat(60));
+            console.log('📦 接收到的数据:', allData);
+            
+            if (!allData) {
+                console.error('❌ allData 为空！');
+                return;
+            }
+            
+            // 安全地获取数据，提供默认值
+            const totalPop = allData.total_population || 0;
+            const cityPop = allData.city_population || {};
+            const marriageTotal = (allData.marriage && allData.marriage.total) || 0;
+            const deathTotal = (allData.death && allData.death.total) || 0;
+            const migrationNet = (allData.migration && allData.migration.net) || 0;
+            const incomeAvg = (allData.income && allData.income.avg) || 0;
+            
+            console.log('📈 数据值:');
+            console.log('   - total_population:', totalPop);
+            console.log('   - city_population:', cityPop);
+            console.log('   - marriage.total:', marriageTotal);
+            console.log('   - death.total:', deathTotal);
+            console.log('   - migration.net:', migrationNet);
+            console.log('   - income.avg:', incomeAvg);
+            
+            try {
+                document.getElementById('totalPopulation').textContent = 
+                    totalPop.toLocaleString();
+                console.log('✅ 总人口数更新成功');
+            } catch (e) {
+                console.error('❌ 更新总人口数失败:', e);
+                document.getElementById('totalPopulation').textContent = '0';
+            }
+            
+            try {
+                document.getElementById('totalCities').textContent = 
+                    Object.keys(cityPop).length;
+                console.log('✅ 城市数量更新成功');
+            } catch (e) {
+                console.error('❌ 更新城市数量失败:', e);
+                document.getElementById('totalCities').textContent = '0';
+            }
+            
+            try {
+                document.getElementById('totalMarriages').textContent = 
+                    marriageTotal.toLocaleString();
+                console.log('✅ 婚姻记录更新成功');
+            } catch (e) {
+                console.error('❌ 更新婚姻记录失败:', e);
+                document.getElementById('totalMarriages').textContent = '0';
+            }
+            
+            try {
+                document.getElementById('totalDeaths').textContent = 
+                    deathTotal.toLocaleString();
+                console.log('✅ 死亡记录更新成功');
+            } catch (e) {
+                console.error('❌ 更新死亡记录失败:', e);
+                document.getElementById('totalDeaths').textContent = '0';
+            }
+            
+            try {
+                document.getElementById('netMigration').textContent = 
+                    (migrationNet >= 0 ? '+' : '') + migrationNet.toLocaleString();
+                console.log('✅ 净迁入人口更新成功');
+            } catch (e) {
+                console.error('❌ 更新净迁入人口失败:', e);
+                document.getElementById('netMigration').textContent = '0';
+            }
+            
+            try {
+                document.getElementById('avgIncome').textContent = 
+                    '¥' + incomeAvg.toLocaleString();
+                console.log('✅ 平均收入更新成功');
+            } catch (e) {
+                console.error('❌ 更新平均收入失败:', e);
+                document.getElementById('avgIncome').textContent = '¥0';
+            }
+            
+            console.log('='.repeat(60) + '\n');
+        }
+        
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            renderChart();
+        }
+        
+        // 渲染图表
+        function renderChart() {
+            console.log('\n' + '='.repeat(60));
+            console.log('📊 渲染图表 - 标签:', currentTab);
+            console.log('='.repeat(60));
+            
+            if (!allData) {
+                console.error('❌ allData 为空，无法渲染图表');
+                return;
+            }
+            
+            console.log('📦 当前数据状态:', {
+                'total_population': allData.total_population,
+                'city_population': allData.city_population ? '存在' : 'undefined',
+                'gender': allData.gender ? '存在' : 'undefined',
+                'age': allData.age ? '存在' : 'undefined',
+                'education': allData.education ? '存在' : 'undefined',
+                'migration': allData.migration ? '存在' : 'undefined',
+                'ethnicity': allData.ethnicity ? '存在' : 'undefined'
+            });
+            
+            let option = null;
+            
+            try {
+                switch(currentTab) {
+                    case 'city':
+                        console.log('🏙️ 渲染城市分布图');
+                        option = getCityOption();
+                        break;
+                    case 'gender':
+                        console.log('👫 渲染性别比例图');
+                        option = getGenderOption();
+                        break;
+                    case 'age':
+                        console.log('🎂 渲染年龄分布图');
+                        option = getAgeOption();
+                        break;
+                    case 'education':
+                        console.log('📚 渲染受教育程度图');
+                        option = getEducationOption();
+                        break;
+                    case 'migration':
+                        console.log('🚀 渲染人口迁移图');
+                        option = getMigrationOption();
+                        break;
+                    case 'ethnicity':
+                        console.log('🌈 渲染民族分布图');
+                        option = getEthnicityOption();
+                        break;
+                    default:
+                        console.warn('⚠️ 未知的标签:', currentTab);
+                }
+                
+                if (option) {
+                    console.log('✅ 图表配置生成成功');
+                    mainChart.setOption(option, true);
+                    console.log('✅ 图表渲染完成');
+                } else {
+                    console.error('❌ 图表配置为空');
+                }
+            } catch (error) {
+                console.error('❌ 渲染图表失败:', error);
+                console.error('错误堆栈:', error.stack);
+            }
+            
+            console.log('='.repeat(60) + '\n');
+        }
+        
+        // 城市分布图
+        function getCityOption() {
+            const data = allData.city_population || {};
+            const cities = Object.keys(data);
+            const values = Object.values(data);
+            
+            console.log('🏙️ 城市分布数据:', { cities, values });
+            
+            if (cities.length === 0) {
+                console.warn('⚠️ 城市数据为空');
+            }
+            
+            return {
+                title: {
+                    text: '山东省各地市人口分布',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: cities,
+                    axisLabel: { rotate: 45, color: '#8a92a6' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '人口数量',
+                    axisLabel: { color: '#8a92a6' }
+                },
+                series: [{
+                    name: '人口数量',
+                    type: 'bar',
+                    data: values,
+                    itemStyle: { color: '#00d4ff' }
+                }]
+            };
+        }
+        
+        // 性别比例图
+        function getGenderOption() {
+            const data = allData.gender || { male: 0, female: 0 };
+            
+            console.log('👫 性别数据:', data);
+            
+            return {
+                title: {
+                    text: '性别比例分析',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} 人 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    top: 'center',
+                    textStyle: { color: '#8a92a6' }
+                },
+                series: [{
+                    name: '性别分布',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: [
+                        { value: data.male, name: '男性' },
+                        { value: data.female, name: '女性' }
+                    ],
+                    label: {
+                        formatter: '{b}: {d}%',
+                        color: '#e0e0e0'
+                    },
+                    color: ['#4db8ff', '#ff69b4']
+                }]
+            };
+        }
+        
+        // 年龄分布图
+        function getAgeOption() {
+            const data = allData.age || { '0-18': 0, '18-35': 0, '35-60': 0, '60+': 0 };
+            
+            console.log('🎂 年龄数据:', data);
+            
+            return {
+                title: {
+                    text: '年龄分布',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} 人 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    top: 'center',
+                    textStyle: { color: '#8a92a6' }
+                },
+                series: [{
+                    name: '年龄段',
+                    type: 'pie',
+                    radius: '60%',
+                    data: [
+                        { value: data['0-18'], name: '0-18岁' },
+                        { value: data['18-35'], name: '18-35岁' },
+                        { value: data['35-60'], name: '35-60岁' },
+                        { value: data['60+'], name: '60岁以上' }
+                    ],
+                    label: { formatter: '{b}: {d}%', color: '#e0e0e0' },
+                    color: ['#5470c6', '#91cc75', '#fac858', '#ee6666']
+                }]
+            };
+        }
+        
+        // 受教育程度图
+        function getEducationOption() {
+            const data = allData.education || {};
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+            
+            console.log('📚 教育数据:', { labels, values });
+            
+            if (labels.length === 0) {
+                console.warn('⚠️ 教育数据为空');
+            }
+            
+            return {
+                title: {
+                    text: '受教育程度分布',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisLabel: { rotate: 45, color: '#8a92a6' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: '#8a92a6' }
+                },
+                series: [{
+                    name: '人数',
+                    type: 'bar',
+                    data: values,
+                    itemStyle: { color: '#91cc75' }
+                }]
+            };
+        }
+        
+        // 人口迁移图
+        function getMigrationOption() {
+            const data = allData.migration || { inflow: 0, outflow: 0, net: 0 };
+            
+            console.log('🚀 迁移数据:', data);
+            
+            return {
+                title: {
+                    text: '人口迁移统计',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'item'
+                },
+                legend: {
+                    top: '10%',
+                    textStyle: { color: '#8a92a6' }
+                },
+                series: [
+                    {
+                        name: '迁移情况',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['50%', '60%'],
+                        data: [
+                            { value: data.inflow, name: '流入人口' },
+                            { value: data.outflow, name: '流出人口' }
+                        ],
+                        label: {
+                            formatter: '{b}: {c} 人',
+                            color: '#e0e0e0'
+                        },
+                        color: ['#00d4ff', '#ff6b6b']
+                    }
+                ]
+            };
+        }
+        
+        // 民族分布图
+        function getEthnicityOption() {
+            const data = allData.ethnicity || {};
+            const pieData = Object.entries(data).map(([name, value]) => ({
+                name: name,
+                value: value || 0
+            }));
+            
+            console.log('🌈 民族数据:', { data, pieData });
+            
+            if (pieData.length === 0) {
+                console.warn('⚠️ 民族数据为空');
+            }
+            
+            return {
+                title: {
+                    text: '民族分布（前10名）',
+                    left: 'center',
+                    textStyle: { fontSize: 24, color: '#00d4ff' }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} 人 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    top: 'center',
+                    textStyle: { color: '#8a92a6' }
+                },
+                series: [{
+                    name: '民族',
+                    type: 'pie',
+                    radius: '60%',
+                    data: pieData.slice(0, 10),
+                    label: {
+                        formatter: '{b}: {d}%',
+                        color: '#e0e0e0'
+                    }
+                }]
+            };
+        }
+        
+        // 显示/隐藏加载提示
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+    </script>
+</body>
+</html>
+

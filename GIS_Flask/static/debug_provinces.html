@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>省份名称调试工具</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #8a92a6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+        }
+        .section {
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .section h2 {
+            color: #00d4ff;
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #2d3548;
+        }
+        th {
+            background: #0f1429;
+            color: #00d4ff;
+        }
+        .match { color: #00ff88; }
+        .mismatch { color: #ff6b6b; }
+        button {
+            background: #00d4ff;
+            color: #0a0e27;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #00b8e6;
+        }
+        pre {
+            background: #0f1429;
+            padding: 15px;
+            border: 1px solid #2d3548;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 省份名称调试工具</h1>
+    
+    <div class="section">
+        <h2>1. 地图数据中的省份名称</h2>
+        <button onclick="loadMapData()">加载地图数据</button>
+        <div id="mapProvinces"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. 后端API返回的省份名称</h2>
+        <button onclick="loadApiData()">加载API数据</button>
+        <div id="apiProvinces"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. 名称匹配对照表</h2>
+        <button onclick="compareNames()">生成对照表</button>
+        <div id="comparison"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. 推荐的映射代码</h2>
+        <button onclick="generateCode()">生成代码</button>
+        <pre id="generatedCode"></pre>
+    </div>
+    
+    <script>
+        let mapProvinces = [];
+        let apiProvinces = {};
+        
+        async function loadMapData() {
+            try {
+                const response = await fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json');
+                const geoJson = await response.json();
+                
+                mapProvinces = geoJson.features.map(f => f.properties.name).sort();
+                
+                let html = '<table><tr><th>序号</th><th>省份名称</th></tr>';
+                mapProvinces.forEach((name, index) => {
+                    html += `<tr><td>${index + 1}</td><td>${name}</td></tr>`;
+                });
+                html += '</table>';
+                
+                document.getElementById('mapProvinces').innerHTML = html;
+                console.log('地图省份:', mapProvinces);
+            } catch (error) {
+                document.getElementById('mapProvinces').innerHTML = 
+                    `<p class="mismatch">❌ 加载失败: ${error.message}</p>`;
+            }
+        }
+        
+        async function loadApiData() {
+            try {
+                const response = await fetch('http://127.0.0.1:6667/api/data/population');
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    apiProvinces = result.data;
+                    const provinceNames = Object.keys(apiProvinces).sort();
+                    
+                    let html = '<table><tr><th>序号</th><th>省份简称</th><th>人口数</th></tr>';
+                    provinceNames.forEach((name, index) => {
+                        html += `<tr><td>${index + 1}</td><td>${name}</td><td>${apiProvinces[name]}</td></tr>`;
+                    });
+                    html += '</table>';
+                    
+                    document.getElementById('apiProvinces').innerHTML = html;
+                    console.log('API省份:', provinceNames);
+                }
+            } catch (error) {
+                document.getElementById('apiProvinces').innerHTML = 
+                    `<p class="mismatch">❌ 加载失败: ${error.message}</p>`;
+            }
+        }
+        
+        function compareNames() {
+            if (mapProvinces.length === 0 || Object.keys(apiProvinces).length === 0) {
+                alert('请先加载地图数据和API数据！');
+                return;
+            }
+            
+            const apiNames = Object.keys(apiProvinces).sort();
+            
+            let html = '<table><tr><th>后端简称</th><th>地图全称</th><th>匹配状态</th></tr>';
+            
+            apiNames.forEach(shortName => {
+                // 尝试智能匹配
+                const matched = mapProvinces.find(fullName => {
+                    // 直接匹配
+                    if (fullName === shortName) return true;
+                    
+                    // 移除后缀匹配
+                    let simplified = fullName;
+                    const suffixes = ['省', '市', '自治区', '特别行政区', 
+                                     '维吾尔自治区', '壮族自治区', '回族自治区'];
+                    for (const suffix of suffixes) {
+                        simplified = simplified.replace(suffix, '');
+                    }
+                    
+                    // 特殊处理
+                    if (simplified === '广西壮族') simplified = '广西';
+                    if (simplified === '宁夏回族') simplified = '宁夏';
+                    if (simplified === '新疆维吾尔') simplified = '新疆';
+                    
+                    return simplified === shortName;
+                });
+                
+                const status = matched ? 
+                    `<span class="match">✅ ${matched}</span>` : 
+                    `<span class="mismatch">❌ 未找到匹配</span>`;
+                
+                html += `<tr><td><strong>${shortName}</strong></td><td>${matched || '?'}</td><td>${status}</td></tr>`;
+            });
+            
+            html += '</table>';
+            document.getElementById('comparison').innerHTML = html;
+        }
+        
+        function generateCode() {
+            if (mapProvinces.length === 0 || Object.keys(apiProvinces).length === 0) {
+                alert('请先加载地图数据和API数据！');
+                return;
+            }
+            
+            const apiNames = Object.keys(apiProvinces).sort();
+            let code = '// 省份名称映射表（后端简称 -> ECharts地图全称）\nconst provinceNameMap = {\n';
+            
+            apiNames.forEach(shortName => {
+                const matched = mapProvinces.find(fullName => {
+                    let simplified = fullName;
+                    const suffixes = ['省', '市', '自治区', '特别行政区', 
+                                     '维吾尔自治区', '壮族自治区', '回族自治区'];
+                    for (const suffix of suffixes) {
+                        simplified = simplified.replace(suffix, '');
+                    }
+                    
+                    if (simplified === '广西壮族') simplified = '广西';
+                    if (simplified === '宁夏回族') simplified = '宁夏';
+                    if (simplified === '新疆维吾尔') simplified = '新疆';
+                    
+                    return simplified === shortName;
+                });
+                
+                if (matched) {
+                    code += `    '${shortName}': '${matched}',\n`;
+                }
+            });
+            
+            code += '};\n';
+            document.getElementById('generatedCode').textContent = code;
+        }
+    </script>
+</body>
+</html>
+

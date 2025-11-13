@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国人口GIS可视化系统</title>
+    
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <!-- 样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: #1a1f3a;
+            padding: 24px 40px;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .header h1 {
+            color: #00d4ff;
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+        
+        .header .subtitle {
+            color: #8a92a6;
+            font-size: 13px;
+            font-weight: 300;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1f3a;
+            padding: 16px 40px;
+            margin: 0;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #8a92a6;
+            font-size: 13px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            50% { opacity: 1; box-shadow: 0 0 0 6px rgba(0, 255, 136, 0); }
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            padding: 24px 40px;
+        }
+        
+        .stat-card {
+            background: #1a1f3a;
+            padding: 20px;
+            border: 1px solid #2d3548;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4ff;
+            background: #1e2440;
+        }
+        
+        .stat-card .icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #00d4ff;
+            margin: 8px 0;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .label {
+            color: #8a92a6;
+            font-size: 12px;
+            font-weight: 300;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            padding: 0 40px;
+            background: #1a1f3a;
+            border-bottom: 1px solid #2d3548;
+        }
+        
+        .nav-tab {
+            padding: 14px 28px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            color: #8a92a6;
+            border-bottom: 2px solid transparent;
+            font-weight: 400;
+        }
+        
+        .nav-tab:hover {
+            color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .nav-tab.active {
+            color: #00d4ff;
+            border-bottom-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.08);
+        }
+        
+        .content {
+            padding: 24px 40px;
+        }
+        
+        .chart-container {
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 600px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group label {
+            font-size: 13px;
+            color: #8a92a6;
+        }
+        
+        .control-group select,
+        .control-group button {
+            padding: 8px 16px;
+            border: 1px solid #2d3548;
+            background: #1a1f3a;
+            color: #8a92a6;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .control-group select:hover,
+        .control-group button:hover {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        
+        .control-group button {
+            background: #00d4ff;
+            color: #0a0e27;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .control-group button:hover {
+            background: #00b8e6;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #8a92a6;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .error {
+            display: none;
+            background: rgba(255, 77, 79, 0.1);
+            border: 1px solid rgba(255, 77, 79, 0.3);
+            color: #ff6b6b;
+            padding: 14px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .header,
+            .status-bar,
+            .nav-tabs,
+            .content {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+            
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部 -->
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🗺️ 中国人口GIS可视化系统</h1>
+                <div class="subtitle">基于内存缓存的高性能实时数据可视化平台</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="/query" style="padding: 10px 20px; background: #00d4ff; color: #0a0e27; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s; border: none;">
+                    🔍 智能查询
+                </a>
+                <a href="/shandong" style="padding: 10px 20px; background: #1a1f3a; color: #00d4ff; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.3s; border: 1px solid #2d3548;">
+                    📍 山东专区
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot"></div>
+            <span>系统运行中</span>
+        </div>
+        <div class="status-item">
+            <span id="lastUpdate">最后更新: 加载中...</span>
+        </div>
+        <div class="status-item">
+            <span id="nextUpdate">下次更新: 加载中...</span>
+        </div>
+        <div class="status-item">
+            <button onclick="forceUpdate()" style="padding: 8px 18px; background: #00d4ff; color: #0a0e27; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.3s;">
+                🔄 刷新数据
+            </button>
+        </div>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats-cards">
+        <div class="stat-card">
+            <div class="icon">📊</div>
+            <div class="value" id="totalPopulation">-</div>
+            <div class="label">总人口数</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🗺️</div>
+            <div class="value" id="totalProvinces">-</div>
+            <div class="label">省级行政区</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">💑</div>
+            <div class="value" id="totalMarried">-</div>
+            <div class="label">已婚人口</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🚀</div>
+            <div class="value" id="totalMigrations">-</div>
+            <div class="label">迁移流向</div>
+        </div>
+    </div>
+    
+    <!-- 导航标签 -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('population')">人口分布</button>
+        <button class="nav-tab" onclick="switchTab('density')">人口密度</button>
+        <button class="nav-tab" onclick="switchTab('marriage')">婚姻统计</button>
+        <button class="nav-tab" onclick="switchTab('migration')">人口迁移</button>
+        <button class="nav-tab" onclick="switchTab('gender')">性别比例</button>
+        <button class="nav-tab" onclick="switchTab('age')">年龄分布</button>
+    </div>
+    
+    <!-- 内容区域 -->
+    <div class="content">
+        <!-- 错误提示 -->
+        <div id="errorMsg" class="error"></div>
+        
+        <!-- 加载提示 -->
+        <div id="loading" class="loading">
+            <div>⏳ 正在加载数据...</div>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div id="controls" class="controls" style="display: none;">
+            <!-- 动态控制 -->
+        </div>
+        
+        <!-- 图表容器 -->
+        <div class="chart-container">
+            <div id="mainChart" class="chart"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let currentTab = 'population';
+        let allData = null;
+        let mainChart = null;
+        let chinaMapLoaded = false;
+        
+        // 省份名称映射表（后端简称 -> ECharts地图全称）
+        const provinceNameMap = {
+            // 直辖市
+            '北京': '北京',
+            '天津': '天津',
+            '上海': '上海',
+            '重庆': '重庆',
+            
+            // 省
+            '河北': '河北',
+            '山西': '山西',
+            '辽宁': '辽宁',
+            '吉林': '吉林',
+            '黑龙江': '黑龙江',
+            '江苏': '江苏',
+            '浙江': '浙江',
+            '安徽': '安徽',
+            '福建': '福建',
+            '江西': '江西',
+            '山东': '山东',
+            '河南': '河南',
+            '湖北': '湖北',
+            '湖南': '湖南',
+            '广东': '广东',
+            '海南': '海南',
+            '四川': '四川',
+            '贵州': '贵州',
+            '云南': '云南',
+            '陕西': '陕西',
+            '甘肃': '甘肃',
+            '青海': '青海',
+            '台湾': '台湾',
+            
+            // 自治区（关键修改：阿里云地图数据中这些可能不带后缀）
+            '内蒙古': '内蒙古',
+            '广西': '广西',
+            '西藏': '西藏',
+            '宁夏': '宁夏',
+            '新疆': '新疆',
+            
+            // 特别行政区
+            '香港': '香港',
+            '澳门': '澳门'
+        };
+        
+        // 将简化的省份名称转换为ECharts地图使用的全称
+        function normalizeProvinceName(shortName) {
+            return provinceNameMap[shortName] || shortName;
+        }
+        
+        // 动态更新省份名称映射表
+        function updateProvinceNameMap(mapProvinces) {
+            // 根据地图中的实际省份名称，智能匹配后端简称
+            console.log('🔧 动态匹配省份名称...');
+            console.log('📋 地图中的所有省份名称:', mapProvinces);
+            
+            const shortToFull = {};
+            
+            mapProvinces.forEach(fullName => {
+                // 跳过无效的省份名称
+                if (!fullName || typeof fullName !== 'string') {
+                    console.warn(`⚠️ 跳过无效的省份名称:`, fullName);
+                    return;
+                }
+                
+                // 移除常见后缀得到简称
+                let shortName = fullName.trim();
+                
+                // 如果为空，跳过
+                if (!shortName) {
+                    return;
+                }
+                
+                // 按顺序尝试移除后缀（从最具体到最一般）
+                const suffixes = [
+                    '维吾尔自治区',
+                    '壮族自治区', 
+                    '回族自治区',
+                    '自治区',
+                    '特别行政区',
+                    '省',
+                    '市'
+                ];
+                
+                for (const suffix of suffixes) {
+                    if (shortName.endsWith(suffix)) {
+                        shortName = shortName.substring(0, shortName.length - suffix.length);
+                        break; // 只移除一次
+                    }
+                }
+                
+                // 记录映射（确保shortName不为空）
+                if (shortName) {
+                    console.log(`   "${shortName}" → "${fullName}"`);
+                    shortToFull[shortName] = fullName;
+                }
+            });
+            
+            // 更新全局映射表
+            Object.assign(provinceNameMap, shortToFull);
+            
+            console.log('\n✅ 省份名称映射已更新，共 ' + Object.keys(shortToFull).length + ' 个省份');
+            console.log('\n📌 关键省份映射检查:');
+            const keyProvinces = ['新疆', '广西', '西藏', '宁夏', '内蒙古', '澳门', '香港', '北京', '广东'];
+            keyProvinces.forEach(shortName => {
+                const fullName = provinceNameMap[shortName];
+                console.log(`   ${shortName.padEnd(8, ' ')} → ${fullName || '❌ 未找到映射'}`);
+            });
+            console.log(''); // 空行
+        }
+        
+        // 加载中国地图GeoJSON数据（从本地服务器）
+        async function loadChinaMap() {
+            if (chinaMapLoaded) return true;
+            
+            try {
+                console.log('📥 正在从本地服务器加载中国地图数据...');
+                
+                // 从本地服务器加载地图数据
+                const response = await fetch('/static/maps/china.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const geoJson = await response.json();
+                
+                // 验证数据格式
+                if (!geoJson || !geoJson.features || geoJson.features.length === 0) {
+                    throw new Error('地图数据格式无效');
+                }
+                
+                // 打印地图中的省份名称（用于调试）
+                console.log('📋 地图中的省份名称:');
+                const mapProvinces = geoJson.features
+                    .map(f => {
+                        const props = f.properties || {};
+                        return props.name || props.NAME || props.NAME_CHN || props.adcode_name || null;
+                    })
+                    .filter(name => name != null && typeof name === 'string'); // 过滤掉无效值
+                console.log(mapProvinces.join(', '));
+                
+                // 动态更新映射表
+                updateProvinceNameMap(mapProvinces);
+                
+                // 注册地图
+                echarts.registerMap('china', geoJson);
+                chinaMapLoaded = true;
+                console.log('✅ 中国地图数据加载成功 (本地服务器)');
+                console.log(`   - 省份数量: ${geoJson.features.length}`);
+                return true;
+            } catch (error) {
+                console.error('❌ 本地地图数据加载失败:', error.message);
+                console.error('   请确保地图文件已下载到 static/maps/china.json');
+                return false;
+            }
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 先加载地图数据
+            const mapLoaded = await loadChinaMap();
+            if (!mapLoaded) {
+                showError('地图数据加载失败，请刷新页面重试');
+                return;
+            }
+            
+            // 再初始化图表和加载数据
+            initChart();
+            loadData();
+            updateCacheInfo();
+            
+            // 每分钟更新一次缓存信息
+            setInterval(updateCacheInfo, 60000);
+        });
+        
+        // 初始化图表
+        function initChart() {
+            mainChart = echarts.init(document.getElementById('mainChart'));
+            window.addEventListener('resize', function() {
+                mainChart.resize();
+            });
+        }
+        
+        // 加载数据
+        async function loadData() {
+            showLoading(true);
+            hideError();
+            
+            try {
+                const response = await fetch('/api/data/all');
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    allData = result.data;
+                    
+                    // 调试：打印后端返回的省份数据
+                    console.log('\n' + '='.repeat(60));
+                    console.log('📦 后端返回的数据:');
+                    console.log('='.repeat(60));
+                    
+                    if (allData.population) {
+                        console.log('\n🏙️ 人口数据中的省份名称（后端简称）:');
+                        const popProvinces = Object.keys(allData.population);
+                        console.log(popProvinces.join(', '));
+                        
+                        console.log('\n📊 关键省份的人口数据:');
+                        const keyProvinces = ['新疆', '广西', '西藏', '宁夏', '内蒙古', '澳门', '香港'];
+                        keyProvinces.forEach(prov => {
+                            const value = allData.population[prov];
+                            console.log(`   ${prov.padEnd(8, ' ')}: ${value !== undefined ? value.toLocaleString() + '人' : '❌ 无数据'}`);
+                        });
+                    }
+                    
+                    console.log('\n='.repeat(60) + '\n');
+                    
+                    updateStats();
+                    renderChart();
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('加载数据失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 更新缓存信息
+        async function updateCacheInfo() {
+            try {
+                const response = await fetch('/api/cache/info');
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    const info = result.data;
+                    document.getElementById('lastUpdate').textContent = 
+                        '最后更新: ' + info.last_update;
+                    document.getElementById('nextUpdate').textContent = 
+                        '下次更新: ' + info.next_update;
+                }
+            } catch (error) {
+                console.error('获取缓存信息失败:', error);
+            }
+        }
+        
+        // 强制更新
+        async function forceUpdate() {
+            try {
+                const response = await fetch('/api/cache/update', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    alert('✅ 缓存更新已触发！');
+                    setTimeout(() => {
+                        loadData();
+                        updateCacheInfo();
+                    }, 2000);
+                } else {
+                    alert('❌ 更新失败: ' + result.message);
+                }
+            } catch (error) {
+                alert('❌ 更新失败: ' + error.message);
+            }
+        }
+        
+        // 更新统计卡片
+        function updateStats() {
+            if (!allData || !allData.national_summary) return;
+            
+            const summary = allData.national_summary;
+            document.getElementById('totalPopulation').textContent = 
+                summary.total_population.toLocaleString();
+            document.getElementById('totalProvinces').textContent = 
+                summary.total_provinces;
+            document.getElementById('totalMarried').textContent = 
+                summary.total_married.toLocaleString();
+            document.getElementById('totalMigrations').textContent = 
+                summary.total_migrations.toLocaleString();
+        }
+        
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // 更新标签样式
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 渲染图表
+            renderChart();
+        }
+        
+        // 渲染图表
+        function renderChart() {
+            if (!allData) return;
+            
+            let option = null;
+            
+            switch(currentTab) {
+                case 'population':
+                    option = getPopulationOption();
+                    break;
+                case 'density':
+                    option = getDensityOption();
+                    break;
+                case 'marriage':
+                    option = getMarriageOption();
+                    break;
+                case 'migration':
+                    option = getMigrationOption();
+                    break;
+                case 'gender':
+                    option = getGenderOption();
+                    break;
+                case 'age':
+                    option = getAgeOption();
+                    break;
+            }
+            
+            if (option) {
+                mainChart.setOption(option, true);
+            }
+        }
+        
+        // 人口分布图配置
+        function getPopulationOption() {
+            const data = allData.population;
+            
+            console.log('\n' + '='.repeat(60));
+            console.log('🗺️ 人口分布图 - 开始数据映射');
+            console.log('='.repeat(60));
+            
+            const mapData = [];
+            const keyProvinces = ['新疆', '广西', '西藏', '宁夏', '内蒙古', '澳门', '香港'];
+            
+            Object.entries(data).forEach(([name, value]) => {
+                const fullName = normalizeProvinceName(name);
+                
+                // 只打印关键省份的映射
+                if (keyProvinces.includes(name)) {
+                    console.log(`✓ ${name.padEnd(8, ' ')} (${value}人) → "${fullName}"`);
+                }
+                
+                mapData.push({
+                    name: fullName,
+                    value: value || 0  // 确保值不为 undefined
+                });
+            });
+            
+            console.log(`\n✅ 共处理 ${mapData.length} 个省份的数据`);
+            console.log('='.repeat(60) + '\n');
+            
+            console.log('📊 地图数据数组:', mapData);
+            
+            return {
+                title: {
+                    text: '中国人口分布图',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}<br/>人口数量: {c} 人'
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...Object.values(data).filter(v => v != null && !isNaN(v)), 100),
+                    text: ['高', '低'],
+                    realtime: false,
+                    calculable: true,
+                    inRange: {
+                        color: ['#e0f3ff', '#96d5ff', '#4db8ff', '#0099ff', '#0066cc']
+                    }
+                },
+                series: [{
+                    name: '人口数量',
+                    type: 'map',
+                    map: 'china',
+                    roam: true,
+                    label: {
+                        show: true,
+                        fontSize: 10
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 14
+                        },
+                        itemStyle: {
+                            areaColor: '#ffa500'
+                        }
+                    },
+                    data: mapData
+                }]
+            };
+        }
+        
+        // 人口密度图配置
+        function getDensityOption() {
+            const data = allData.density;
+            const mapData = Object.entries(data).map(([name, value]) => ({
+                name: normalizeProvinceName(name),  // 转换为全称
+                value: value || 0  // 确保值不为 undefined
+            }));
+            
+            return {
+                title: {
+                    text: '中国人口密度图',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}<br/>人口密度: {c} 人/km²'
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...Object.values(data).filter(v => v != null && !isNaN(v)), 100),
+                    text: ['高密度', '低密度'],
+                    realtime: false,
+                    calculable: true,
+                    inRange: {
+                        color: ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026']
+                    }
+                },
+                series: [{
+                    name: '人口密度',
+                    type: 'map',
+                    map: 'china',
+                    roam: true,
+                    label: {
+                        show: true,
+                        fontSize: 10
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 14
+                        }
+                    },
+                    data: mapData
+                }]
+            };
+        }
+        
+        // 婚姻统计图配置
+        function getMarriageOption() {
+            const data = allData.marriage;
+            // 创建名称映射的反向查找表（全称 -> 简称）
+            const reverseMap = {};
+            Object.entries(provinceNameMap).forEach(([shortName, fullName]) => {
+                reverseMap[fullName] = shortName;
+            });
+            
+            const mapData = Object.entries(data).map(([name, value]) => ({
+                name: normalizeProvinceName(name),  // 转换为全称
+                value: value.married_count || 0  // 确保值不为 undefined
+            }));
+            
+            return {
+                title: {
+                    text: '结婚人口分布图',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        // 将全称转回简称以查找数据
+                        const shortName = reverseMap[params.name] || params.name;
+                        const info = data[shortName];
+                        if (info) {
+                            return params.name + '<br/>' +
+                                   '结婚人数: ' + info.married_count.toLocaleString() + ' 人<br/>' +
+                                   '结婚率: ' + info.marriage_rate + '%';
+                        }
+                        return params.name;
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...mapData.map(d => d.value).filter(v => v != null && !isNaN(v)), 100),
+                    text: ['多', '少'],
+                    realtime: false,
+                    calculable: true,
+                    inRange: {
+                        color: ['#fde0dd', '#fa9fb5', '#dd3497', '#ae017e', '#7a0177']
+                    }
+                },
+                series: [{
+                    name: '结婚人数',
+                    type: 'map',
+                    map: 'china',
+                    roam: true,
+                    label: {
+                        show: true,
+                        fontSize: 10
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 14
+                        }
+                    },
+                    data: mapData
+                }]
+            };
+        }
+        
+        // 人口迁移图配置
+        function getMigrationOption() {
+            const migrations = allData.migration.slice(0, 50);  // 只显示前50条
+            
+            // 准备散点数据（省份位置）
+            const scatterData = [];
+            const linesData = [];
+            
+            migrations.forEach(item => {
+                // 转换省份名称为全称
+                const fromFull = normalizeProvinceName(item.from);
+                const toFull = normalizeProvinceName(item.to);
+                
+                linesData.push({
+                    fromName: fromFull,
+                    toName: toFull,
+                    coords: [[fromFull], [toFull]],
+                    value: item.count
+                });
+            });
+            
+            return {
+                title: {
+                    text: '人口迁移流向图',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item'
+                },
+                geo: {
+                    map: 'china',
+                    roam: true,
+                    label: {
+                        emphasis: {
+                            show: true
+                        }
+                    },
+                    itemStyle: {
+                        normal: {
+                            areaColor: '#f3f3f3',
+                            borderColor: '#516b91'
+                        },
+                        emphasis: {
+                            areaColor: '#ffa500'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        type: 'lines',
+                        coordinateSystem: 'geo',
+                        data: linesData,
+                        large: true,
+                        effect: {
+                            show: true,
+                            constantSpeed: 30,
+                            symbol: 'arrow',
+                            symbolSize: 8,
+                            trailLength: 0
+                        },
+                        lineStyle: {
+                            color: '#ff6347',
+                            width: 1,
+                            curveness: 0.2,
+                            opacity: 0.6
+                        }
+                    }
+                ]
+            };
+        }
+        
+        // 性别比例图配置
+        function getGenderOption() {
+            const data = allData.gender;
+            const provinces = Object.keys(data).slice(0, 15);  // 前15个省份
+            const maleData = provinces.map(p => data[p].male);
+            const femaleData = provinces.map(p => data[p].female);
+            
+            return {
+                title: {
+                    text: '各省性别比例',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                legend: {
+                    data: ['男性', '女性'],
+                    top: '10%'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: provinces,
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '人口数量'
+                },
+                series: [
+                    {
+                        name: '男性',
+                        type: 'bar',
+                        stack: 'total',
+                        data: maleData,
+                        itemStyle: {
+                            color: '#4db8ff'
+                        }
+                    },
+                    {
+                        name: '女性',
+                        type: 'bar',
+                        stack: 'total',
+                        data: femaleData,
+                        itemStyle: {
+                            color: '#ff69b4'
+                        }
+                    }
+                ]
+            };
+        }
+        
+        // 年龄分布图配置
+        function getAgeOption() {
+            // 汇总全国数据
+            const ageData = {'0-18': 0, '18-35': 0, '35-60': 0, '60+': 0};
+            Object.values(allData.age).forEach(provinceAge => {
+                Object.entries(provinceAge).forEach(([age, count]) => {
+                    ageData[age] += count;
+                });
+            });
+            
+            const pieData = Object.entries(ageData).map(([name, value]) => ({
+                name: name,
+                value: value
+            }));
+            
+            return {
+                title: {
+                    text: '全国年龄分布',
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 24,
+                        color: '#667eea'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} 人 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    top: 'center',
+                    data: ['0-18', '18-35', '35-60', '60+']
+                },
+                series: [{
+                    name: '年龄段',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}: {d}%'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 16,
+                            fontWeight: 'bold'
+                        }
+                    },
+                    data: pieData,
+                    color: ['#5470c6', '#91cc75', '#fac858', '#ee6666']
+                }]
+            };
+        }
+        
+        // 显示/隐藏加载提示
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // 显示错误
+        function showError(message) {
+            const error = document.getElementById('errorMsg');
+            error.textContent = '❌ ' + message;
+            error.classList.add('show');
+        }
+        
+        // 隐藏错误
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
+

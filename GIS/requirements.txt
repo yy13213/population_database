@@ -1,0 +1,16 @@
+# 人口GIS可视化系统依赖
+
+# 数据库
+pymysql==1.1.0
+
+# 数据处理
+pandas==2.1.4
+numpy==1.26.2
+
+# 可视化
+pyecharts==2.0.4
+streamlit==1.29.0
+
+# 其他
+python-dateutil==2.8.2
+

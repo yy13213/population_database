@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能查询 - 人口GIS系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #8a92a6;
+            font-size: 16px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2d3548;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            color: #8a92a6;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            color: #00d4ff;
+        }
+
+        .tab.active {
+            color: #00d4ff;
+            border-bottom-color: #00d4ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .query-panel {
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: #00d4ff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0a0e27;
+            border: 1px solid #2d3548;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .form-textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            color: #8a92a6;
+            cursor: pointer;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: #00d4ff;
+            color: #0a0e27;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #00ff88;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #2d3548;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #2d3548;
+            color: #00d4ff;
+        }
+
+        .btn-secondary:hover {
+            background: #3d4558;
+        }
+
+        .results-panel {
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2d3548;
+        }
+
+        .results-title {
+            color: #00d4ff;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            color: #8a92a6;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        .sql-display {
+            background: #0a0e27;
+            border: 1px solid #2d3548;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #00ff88;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .answer-box {
+            background: #0a0e27;
+            border: 1px solid #2d3548;
+            border-left: 4px solid #00d4ff;
+            padding: 20px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+            color: #e0e0e0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #2d3548;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            color: #00d4ff;
+            font-weight: 600;
+            border: 1px solid #3d4558;
+        }
+
+        td {
+            padding: 10px 12px;
+            border: 1px solid #2d3548;
+            color: #e0e0e0;
+        }
+
+        tr:hover {
+            background: #0a0e27;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #00d4ff;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #2d3548;
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #1a1f3a;
+            border: 1px solid #2d3548;
+            color: #00d4ff;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background: #2d3548;
+            border-color: #00d4ff;
+        }
+
+        .example-queries {
+            background: #0a0e27;
+            border: 1px solid #2d3548;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .example-title {
+            color: #8a92a6;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .example-item {
+            color: #00d4ff;
+            font-size: 13px;
+            padding: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .example-item:hover {
+            background: #1a1f3a;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="nav-link">← 返回地图</a>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔍 智能查询系统</h1>
+            <p>支持手动SQL查询和AI自然语言查询</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('manual')">💻 手动SQL查询</button>
+            <button class="tab" onclick="switchTab('nl')">🤖 AI自然语言查询</button>
+        </div>
+
+        <!-- 手动SQL查询面板 -->
+        <div id="manual-tab" class="tab-content active">
+            <div class="query-panel">
+                <div class="form-group">
+                    <label class="form-label">SQL 查询语句</label>
+                    <textarea id="manual-sql" class="form-textarea" placeholder="输入您的SQL查询语句，例如：&#10;SELECT hukou_province, COUNT(*) as count FROM population_memory GROUP BY hukou_province LIMIT 10"></textarea>
+                    <div class="example-queries">
+                        <div class="example-title">示例查询（点击自动填充）：</div>
+                        <div class="example-item" onclick="fillExample(0)">• 查询各省人口数量前10名</div>
+                        <div class="example-item" onclick="fillExample(1)">• 查询广东省的性别分布</div>
+                        <div class="example-item" onclick="fillExample(2)">• 查询收入最高的100人</div>
+                        <div class="example-item" onclick="fillExample(3)">• 查询人口迁移流向</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="manual-use-memory" checked>
+                        <label for="manual-use-memory">使用内存表（更快）</label>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn" onclick="executeManualQuery()">执行查询</button>
+                    <button class="btn btn-secondary" onclick="clearManualResults()">清空结果</button>
+                </div>
+            </div>
+
+            <div id="manual-loading" class="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px;">正在执行查询...</p>
+            </div>
+
+            <div id="manual-results"></div>
+        </div>
+
+        <!-- AI自然语言查询面板 -->
+        <div id="nl-tab" class="tab-content">
+            <div class="query-panel">
+                <div class="form-group">
+                    <label class="form-label">自然语言问题</label>
+                    <textarea id="nl-question" class="form-textarea" placeholder="用自然语言描述您的问题，AI会自动生成SQL并执行查询&#10;例如：&#10;• 查询广东省有多少人口？&#10;• 统计各省男女比例&#10;• 收入最高的10个人是谁？&#10;• 哪些人从广东迁移到北京？"></textarea>
+                    <div class="example-queries">
+                        <div class="example-title">示例问题（点击自动填充）：</div>
+                        <div class="example-item" onclick="fillNLExample(0)">• 查询广东省有多少人口？</div>
+                        <div class="example-item" onclick="fillNLExample(1)">• 统计各省男女比例</div>
+                        <div class="example-item" onclick="fillNLExample(2)">• 收入最高的10个人是谁？</div>
+                        <div class="example-item" onclick="fillNLExample(3)">• 哪些民族的人口数量最多？</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="nl-use-memory" checked>
+                        <label for="nl-use-memory">使用内存表（更快）</label>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn" onclick="executeNLQuery()">🤖 AI查询</button>
+                    <button class="btn btn-secondary" onclick="clearNLResults()">清空结果</button>
+                </div>
+            </div>
+
+            <div id="nl-loading" class="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px;">AI正在分析问题并生成SQL...</p>
+            </div>
+
+            <div id="nl-results"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        const sqlExamples = [
+            'SELECT hukou_province, COUNT(*) as count FROM population_memory GROUP BY hukou_province ORDER BY count DESC LIMIT 10',
+            'SELECT gender, COUNT(*) as count FROM population_memory WHERE hukou_province = "广东" GROUP BY gender',
+            'SELECT name, id_no, income FROM population_memory WHERE income IS NOT NULL ORDER BY income DESC LIMIT 100',
+            'SELECT hukou_province, cur_province, COUNT(*) as count FROM population_memory WHERE hukou_province != cur_province GROUP BY hukou_province, cur_province ORDER BY count DESC LIMIT 20'
+        ];
+
+        const nlExamples = [
+            '查询广东省有多少人口？',
+            '统计各省男女比例',
+            '收入最高的10个人是谁？',
+            '哪些民族的人口数量最多？'
+        ];
+
+        function switchTab(tab) {
+            // 切换标签样式
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+        }
+
+        function fillExample(index) {
+            document.getElementById('manual-sql').value = sqlExamples[index];
+        }
+
+        function fillNLExample(index) {
+            document.getElementById('nl-question').value = nlExamples[index];
+        }
+
+        async function executeManualQuery() {
+            const sql = document.getElementById('manual-sql').value.trim();
+            const useMemory = document.getElementById('manual-use-memory').checked;
+
+            if (!sql) {
+                alert('请输入SQL语句');
+                return;
+            }
+
+            const loading = document.getElementById('manual-loading');
+            const results = document.getElementById('manual-results');
+            
+            loading.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/query/manual`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sql, use_memory: useMemory })
+                });
+
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    displayManualResults(data.data);
+                } else {
+                    displayError(results, data.message);
+                }
+            } catch (error) {
+                displayError(results, '请求失败: ' + error.message);
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        async function executeNLQuery() {
+            const question = document.getElementById('nl-question').value.trim();
+            const useMemory = document.getElementById('nl-use-memory').checked;
+
+            if (!question) {
+                alert('请输入问题');
+                return;
+            }
+
+            const loading = document.getElementById('nl-loading');
+            const results = document.getElementById('nl-results');
+            
+            loading.classList.add('active');
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/query/nl`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question, use_memory: useMemory })
+                });
+
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    displayNLResults(data.data);
+                } else {
+                    displayError(results, data.message);
+                }
+            } catch (error) {
+                displayError(results, '请求失败: ' + error.message);
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function displayManualResults(data) {
+            const results = document.getElementById('manual-results');
+            const { sql, results: queryResults, execution_time } = data;
+
+            let html = `
+                <div class="results-panel">
+                    <div class="results-header">
+                        <div class="results-title">查询结果</div>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <span>执行时间：</span>
+                                <span class="stat-value">${execution_time} 秒</span>
+                            </div>
+                            <div class="stat-item">
+                                <span>结果数量：</span>
+                                <span class="stat-value">${queryResults.count} 条</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="sql-display">SQL: ${escapeHtml(sql)}</div>
+            `;
+
+            if (queryResults.count > 0) {
+                html += '<div class="table-container"><table><thead><tr>';
+                
+                queryResults.columns.forEach(col => {
+                    html += `<th>${escapeHtml(col)}</th>`;
+                });
+                
+                html += '</tr></thead><tbody>';
+                
+                queryResults.data.forEach(row => {
+                    html += '<tr>';
+                    queryResults.columns.forEach(col => {
+                        const value = row[col];
+                        html += `<td>${value !== null ? escapeHtml(String(value)) : '<span style="color:#666">NULL</span>'}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+            } else {
+                html += '<div class="success">查询执行成功，但没有返回数据</div>';
+            }
+
+            html += '</div>';
+            results.innerHTML = html;
+        }
+
+        function displayNLResults(data) {
+            const results = document.getElementById('nl-results');
+            const { question, sql, sql_generation_time, sql_execution_time, results: queryResults, answer } = data;
+
+            let html = `
+                <div class="results-panel">
+                    <div class="results-header">
+                        <div class="results-title">AI查询结果</div>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <span>SQL生成：</span>
+                                <span class="stat-value">${sql_generation_time} 秒</span>
+                            </div>
+                            <div class="stat-item">
+                                <span>SQL执行：</span>
+                                <span class="stat-value">${sql_execution_time} 秒</span>
+                            </div>
+                            <div class="stat-item">
+                                <span>结果数量：</span>
+                                <span class="stat-value">${queryResults.count} 条</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="sql-display">生成的SQL: ${escapeHtml(sql)}</div>
+                    
+                    <div class="answer-box">
+                        <strong style="color: #00d4ff;">🤖 AI回答：</strong><br><br>
+                        ${escapeHtml(answer).replace(/\n/g, '<br>')}
+                    </div>
+            `;
+
+            if (queryResults.count > 0) {
+                html += '<div class="table-container"><table><thead><tr>';
+                
+                queryResults.columns.forEach(col => {
+                    html += `<th>${escapeHtml(col)}</th>`;
+                });
+                
+                html += '</tr></thead><tbody>';
+                
+                queryResults.data.forEach(row => {
+                    html += '<tr>';
+                    queryResults.columns.forEach(col => {
+                        const value = row[col];
+                        html += `<td>${value !== null ? escapeHtml(String(value)) : '<span style="color:#666">NULL</span>'}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+            }
+
+            html += '</div>';
+            results.innerHTML = html;
+        }
+
+        function displayError(container, message) {
+            container.innerHTML = `
+                <div class="results-panel">
+                    <div class="error">❌ ${escapeHtml(message)}</div>
+                </div>
+            `;
+        }
+
+        function clearManualResults() {
+            document.getElementById('manual-sql').value = '';
+            document.getElementById('manual-results').innerHTML = '';
+        }
+
+        function clearNLResults() {
+            document.getElementById('nl-question').value = '';
+            document.getElementById('nl-results').innerHTML = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
+
