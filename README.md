@@ -1124,8 +1124,8 @@ MYSQL_CONFIG = {
 #### GPT-4 Vision API配置
 ```python
 client = OpenAI(
-    base_url="https://api.openai-proxy.org/v1",
-    api_key="sk-nqxmOAEeIRkAYEs66tjqlvNCZ4Nl6uEK3XL554V1zFit2ojI"
+    base_url="",
+    api_key=""
 )
 ```
 
